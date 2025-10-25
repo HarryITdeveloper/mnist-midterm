@@ -1,0 +1,6 @@
+{
+  "best_val_acc": 0.7991,
+  "best_val_f1": 0.7990466086929637,
+  "best_epoch": 48,
+  "params": 878753
+}

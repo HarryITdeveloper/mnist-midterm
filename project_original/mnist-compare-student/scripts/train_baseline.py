@@ -2,10 +2,14 @@ import os, json, argparse, numpy as np, torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from tqdm import tqdm
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch import amp
+import torch.backends.cudnn as cudnn
+
 
 from .utils.seed import set_seed
 from .utils.data import PairNPZDataset
-from .models.simple_compare_cnn import CompareNet, count_params
+from .models.siamese_compare import Model as CompareNet, count_params
 
 def evaluate(model, loader, device):
     model.eval()
@@ -44,13 +48,16 @@ def main():
     ap.add_argument("--weight_decay", type=float, default=1e-4)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--num_workers", type=int, default=2)
+    ap.add_argument("--label_smoothing", type=float, default=0.05)   # 二分类平滑标签
+    ap.add_argument("--early_stop_patience", type=int, default=10)    # 提高耐心
     args = ap.parse_args()
 
+    cudnn.benchmark = True
     os.makedirs(args.out_dir, exist_ok=True)
     set_seed(args.seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = CompareNet(feat_dim=128).to(device)
+    model = CompareNet().to(device)
     n_params = int(count_params(model))
 
     train_path = os.path.join(args.data_dir, "train.npz")
@@ -62,25 +69,52 @@ def main():
     val_loader   = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
     optim = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = CosineAnnealingLR(optim, T_max=args.epochs)
     criterion = torch.nn.BCEWithLogitsLoss()
+    scaler = amp.GradScaler('cuda', enabled=(device.type == "cuda"))
 
     best = {"acc":0.0, "f1":0.0, "epoch":-1}
-    patience, bad = 3, 0
+    patience, bad = args.early_stop_patience, 0
 
     for epoch in range(1, args.epochs+1):
         model.train()
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}")
         for xa, xb, y in pbar:
-            xa = xa.to(device); xb = xb.to(device); y = y.to(device).float()
-            logit = model(xa, xb)
-            loss = criterion(logit, y)
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
+            xa = xa.to(device, non_blocking=True)
+            xb = xb.to(device, non_blocking=True)
+            y  = y.to(device).float()
+
+            # --- label smoothing for binary ---
+            # 将 {0,1} 目标平滑到 {ε/2, 1-ε/2}
+            eps = args.label_smoothing
+            y_s = y * (1 - eps) + 0.5 * eps
+
+            optim.zero_grad(set_to_none=True)
+            if scaler.is_enabled():
+                with amp.autocast('cuda'):
+                    logit = model(xa, xb)
+                    loss  = criterion(logit, y_s)
+                scaler.scale(loss).backward()
+                # 先反缩放，再裁剪，再 step
+                scaler.unscale_(optim)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                scaler.step(optim)
+                scaler.update()
+            else:
+                logit = model(xa, xb)
+                loss  = criterion(logit, y_s)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optim.step()
+
+
             pbar.set_postfix(loss=float(loss.item()))
 
+        # 一轮结束：验证 + 调度器 step
         acc, f1 = evaluate(model, val_loader, device)
-        print(f"[Val] epoch={epoch} acc={acc:.4f} f1_macro={f1:.4f}  (params={n_params})")
+        print(f"[Val] epoch={epoch} acc={acc:.4f} f1_macro={f1:.4f}")
+
+        scheduler.step()
 
         if acc > best["acc"]:
             best = {"acc":acc, "f1":f1, "epoch":epoch}
