@@ -1,0 +1,173 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train Baseline",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.train_baseline",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--out_dir",
+                "./outputs/baseline",
+                "--epochs",
+                "10",
+                "--batch_size",
+                "128",
+                "--lr",
+                "0.001",
+                "--weight_decay",
+                "0.0001",
+                "--seed",
+                "42",
+                "--num_workers",
+                "2"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Inference Baseline",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.baseline_inference",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--ckpt",
+                "./outputs/baseline/model.pt",
+                "--out",
+                "./pred_public.csv"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Inference Baseline Private",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.baseline_inference",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--ckpt",
+                "./outputs/baseline/model.pt",
+                "--out",
+                "./pred_private.csv",
+                "--private",
+                "True"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Check Submission ",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.check_submission",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--pred",
+                "./pred_public.csv"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Eval Public",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.eval_public",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--pred",
+                "./pred_public.csv",
+                "--labels",
+                "./data/test_public_labels.csv"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Eval Private",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.eval_public",
+            "args": [
+                "--data_dir",
+                "./data",
+                "--pred",
+                "./pred_private.csv",
+                "--labels",
+                "./data/test_private_labels.csv"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Dataset corrupted",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.ta_make_dataset_corrupted",
+            "args": [
+                "--root",
+                "./data",
+                "--severity_train",
+                "6",
+                "--severity_val",
+                "6",
+                "--severity_public",
+                "6",
+                "--severity_private",
+                "6",
+                "--weight_diff1",
+                "0.8"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}

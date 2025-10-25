@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "severity": {
+    "train": 6,
+    "val": 6,
+    "public": 6,
+    "private": 6
+  },
+  "weight_diff1": 0.8
+}
